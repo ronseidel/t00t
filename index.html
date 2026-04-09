@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>t00t</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+  /* 
+    t00t v04 — 2026-04-09
+    ----------------------
+    v01: Initial 3x3 fart soundboard, Web Audio API synthesis
+    v02: Rebuilt audio — PCM → WAV blobs → Audio elements
+    v03: Rewrote generators with flutter AM modulation
+    v04: Real MP3 samples from ronseidel.github.io/t00t/sounds/
+         Pool of 3 Audio elements per sound for rapid-fire taps.
+  */
+
+  :root {
+    --bg: #F9F9F9;
+    --ink: #034D32;
+    --accent: #028454;
+    --surface: #ffffff;
+    --border: #e0e0e0;
+    --radius: 16px;
+    --font: 'Space Mono', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0a0a;
+      --ink: #a8d5ba;
+      --accent: #34d399;
+      --surface: #1a1a1a;
+      --border: #2a2a2a;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  header {
+    text-align: center;
+    padding: 12px 0 16px;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .zero { color: var(--accent); }
+
+  header p {
+    font-size: 0.7rem;
+    opacity: 0.5;
+    margin-top: 4px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    flex: 1;
+    align-content: center;
+  }
+
+  .pad {
+    aspect-ratio: 1;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: transform 0.08s, border-color 0.08s, box-shadow 0.08s;
+    position: relative;
+    overflow: hidden;
+    -webkit-user-select: none;
+  }
+
+  .pad:active, .pad.hit {
+    transform: scale(0.93);
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(2, 132, 84, 0.25);
+  }
+
+  .pad .emoji { font-size: 2rem; line-height: 1; pointer-events: none; }
+  .pad .label {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; opacity: 0.7; pointer-events: none;
+  }
+
+  .pad .ripple {
+    position: absolute; border-radius: 50%; background: var(--accent);
+    opacity: 0.2; transform: scale(0); animation: rip 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes rip { to { transform: scale(2.5); opacity: 0; } }
+
+  footer {
+    text-align: center; padding: 12px 0 8px; flex-shrink: 0;
+  }
+  footer span { font-size: 0.6rem; opacity: 0.3; letter-spacing: 0.05em; }
+  footer .zero { opacity: 0.5; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>t<span class="zero">00</span>t</h1>
+    <p>a fart noise app</p>
+  </header>
+  <div class="grid" id="grid"></div>
+  <footer><span><span class="zero">0</span>fam · v04 · for m<span class="zero">0</span>rry</span></footer>
+</div>
+
+<script>
+const BASE = 'https://ronseidel.github.io/t00t/sounds/';
+const POOL_SIZE = 3;
+
+const PADS = [
+  { id: 'classic',   emoji: '💨', label: 'Classic' },
+  { id: 'squeaker',  emoji: '🐁', label: 'Squeaker' },
+  { id: 'rumbler',   emoji: '🌋', label: 'Rumbler' },
+  { id: 'ripper',    emoji: '⚡', label: 'Ripper' },
+  { id: 'bubbler',   emoji: '🫧', label: 'Bubbler' },
+  { id: 'tuba',      emoji: '🎺', label: 'Tuba' },
+  { id: 'pffft',     emoji: '😤', label: 'Pffft' },
+  { id: 'whoopee',   emoji: '🎪', label: 'Whoopee' },
+  { id: 'hog',       emoji: '🐷', label: 'Hog' },
+];
+
+// Pre-load audio pools
+const audioPool = {};
+PADS.forEach(pad => {
+  const url = BASE + pad.id + '.mp3';
+  audioPool[pad.id] = Array.from({ length: POOL_SIZE }, () => {
+    const a = new Audio(url);
+    a.preload = 'auto';
+    return a;
+  });
+  audioPool[pad.id]._idx = 0;
+});
+
+function playSound(id) {
+  const pool = audioPool[id];
+  const a = pool[pool._idx % pool.length];
+  pool._idx++;
+  a.currentTime = 0;
+  a.play().catch(() => {});
+}
+
+// Build grid
+const grid = document.getElementById('grid');
+PADS.forEach(pad => {
+  const el = document.createElement('button');
+  el.className = 'pad';
+  el.innerHTML = `<span class="emoji">${pad.emoji}</span><span class="label">${pad.label}</span>`;
+
+  function fire(e) {
+    e.preventDefault();
+    if (e.type === 'mousedown' && el._lastTouch && Date.now() - el._lastTouch < 500) return;
+    if (e.type === 'touchstart') el._lastTouch = Date.now();
+
+    playSound(pad.id);
+
+    el.classList.add('hit');
+    const r = document.createElement('div');
+    r.className = 'ripple';
+    const rect = el.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    r.style.width = r.style.height = size + 'px';
+    r.style.left = '50%'; r.style.top = '50%';
+    r.style.marginLeft = -size / 2 + 'px';
+    r.style.marginTop = -size / 2 + 'px';
+    el.appendChild(r);
+    setTimeout(() => { el.classList.remove('hit'); r.remove(); }, 400);
+  }
+
+  el.addEventListener('touchstart', fire, { passive: false });
+  el.addEventListener('mousedown', fire);
+  grid.appendChild(el);
+});
+</script>
+</body>
+</html>
