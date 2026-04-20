@@ -26,13 +26,23 @@
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
 
   /* 
-    t00t v04 — 2026-04-09
+    t00t v05 — 2026-04-19
     ----------------------
     v01: Initial 3x3 fart soundboard, Web Audio API synthesis
     v02: Rebuilt audio — PCM → WAV blobs → Audio elements
     v03: Rewrote generators with flutter AM modulation
     v04: Real MP3 samples from ronseidel.github.io/t00t/sounds/
          Pool of 3 Audio elements per sound for rapid-fire taps.
+    v05: Footer: two lines now. Top line keeps "for m0rry" (the
+         heart of the app). Bottom line adds "part of 0fam" with
+         link to 0utput.co. Removed redundant "0fam ·" from the
+         top line since the new line carries that framing.
+         Smaller, fainter treatment so it tucks under without
+         fighting the m0rry line.
+         Switched footer fade from opacity to color-mix w/
+         transparent so .zero green can still punch through —
+         opacity cascades to children and can't be overridden,
+         color can.
   */
 
   :root {
@@ -144,10 +154,12 @@
   @keyframes rip { to { transform: scale(2.5); opacity: 0; } }
 
   footer {
-    text-align: center; padding: 12px 0 8px; flex-shrink: 0;
+    text-align: center; padding: 10px 0 6px; flex-shrink: 0;
   }
-  footer span { font-size: 0.6rem; opacity: 0.3; letter-spacing: 0.05em; }
-  footer .zero { opacity: 0.5; }
+  footer .line { display: block; font-size: 0.6rem; color: color-mix(in srgb, var(--ink) 30%, transparent); letter-spacing: 0.05em; }
+  footer .line-fam { font-size: 0.55rem; color: color-mix(in srgb, var(--ink) 25%, transparent); margin-top: 3px; letter-spacing: 0.05em; }
+  footer .line-fam a { color: inherit; text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 0; }
+  footer .line-fam a:hover { color: var(--ink); }
 </style>
 </head>
 <body>
@@ -157,7 +169,10 @@
     <p>a fart noise app</p>
   </header>
   <div class="grid" id="grid"></div>
-  <footer><span><span class="zero">0</span>fam · v04 · for m<span class="zero">0</span>rry</span></footer>
+  <footer>
+    <span class="line">v05 · for m<span class="zero">0</span>rry</span>
+    <span class="line-fam">part of <a href="https://0utput.co" target="_blank" rel="noopener"><span class="zero">0</span>fam</a> — a growing family of small, focused apps</span>
+  </footer>
 </div>
 
 <script>
