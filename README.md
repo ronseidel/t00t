@@ -24,10 +24,6 @@ It's also the test case for how far the "single HTML file, no backend, no accoun
 
 t00t is part of [0fam](https://0utput.co), a family of small, focused web apps. Every name drops a letter for a zero.
 
-## License
-
-MIT.
-
 ## Contact
 
 Built by [Ron Seidel](https://rontheron.com) · [hello@0utput.co](mailto:hello@0utput.co)
